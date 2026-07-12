@@ -13,7 +13,9 @@ function buildTransform(): Transform {
 	};
 }
 
-function buildVideoElement(overrides: Partial<VideoElement> = {}): VideoElement {
+function buildVideoElement(
+	overrides: Partial<VideoElement> = {},
+): VideoElement {
 	return {
 		id: "video-1",
 		type: "video",
@@ -66,7 +68,7 @@ describe("applyElementUpdate", () => {
 			},
 		});
 
-		expect(updatedElement.duration).toBe(7);
+		expect(Number(updatedElement.duration)).toBe(7);
 		expect(Number.isInteger(updatedElement.duration)).toBe(true);
 	});
 });

@@ -5,8 +5,8 @@ import { db } from "@/db";
 import { webEnv } from "@/env/web";
 
 const redis = new Redis({
-	url: webEnv.UPSTASH_REDIS_REST_URL,
-	token: webEnv.UPSTASH_REDIS_REST_TOKEN,
+	url: webEnv.UPSTASH_REDIS_REST_URL ?? "http://localhost:8079",
+	token: webEnv.UPSTASH_REDIS_REST_TOKEN ?? "",
 });
 
 export const auth = betterAuth({
@@ -14,7 +14,7 @@ export const auth = betterAuth({
 		provider: "pg",
 		usePlural: true,
 	}),
-	secret: webEnv.BETTER_AUTH_SECRET,
+	secret: webEnv.BETTER_AUTH_SECRET ?? "dev-secret",
 	user: {
 		deleteUser: {
 			enabled: true,

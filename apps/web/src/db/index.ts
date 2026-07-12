@@ -7,7 +7,9 @@ let _db: ReturnType<typeof drizzle> | null = null;
 
 function getDb() {
 	if (!_db) {
-		const client = postgres(webEnv.DATABASE_URL);
+		const client = postgres(
+			webEnv.DATABASE_URL ?? "postgres://localhost:5432/opencut",
+		);
 		_db = drizzle(client, { schema });
 	}
 

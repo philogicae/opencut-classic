@@ -1,49 +1,53 @@
 services:
   db:
-    image: postgres:17
+    image: postgres:17-alpine
+    container_name: opencut-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: opencut
-      POSTGRES_PASSWORD: opencut
-      POSTGRES_DB: opencut
+      POSTGRES_USER: ${POSTGRES_USER:-opencut}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opencut}
+      POSTGRES_DB: ${POSTGRES_DB:-opencut}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U opencut"]
-      interval: 30s
-      timeout: 10s
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-opencut} -d ${POSTGRES_DB:-opencut}",
+        ]
+      interval: 10s
+      timeout: 5s
       retries: 5
       start_period: 10s
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
+    container_name: opencut-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 5
       start_period: 10s
 
   serverless-redis-http:
     image: hiett/serverless-redis-http:latest
-    ports:
-      - "8079:80"
+    container_name: opencut-srh
+    restart: unless-stopped
     environment:
       SRH_MODE: env
-      SRH_TOKEN: example_token
+      SRH_TOKEN: ${SRH_TOKEN:-srh_redis_example_token}
       SRH_CONNECTION_STRING: "redis://redis:6379"
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:80 || exit 1"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 5
       start_period: 10s
 
@@ -52,26 +56,36 @@ services:
       context: .
       dockerfile: ./apps/web/Dockerfile
       args:
-        - FREESOUND_CLIENT_ID=${FREESOUND_CLIENT_ID}
-        - FREESOUND_API_KEY=${FREESOUND_API_KEY}
-        - NEXT_PUBLIC_MARBLE_API_URL=${NEXT_PUBLIC_MARBLE_API_URL:-https://api.marblecms.com}
-        - MARBLE_WORKSPACE_KEY=${MARBLE_WORKSPACE_KEY:-build-placeholder}
+        FREESOUND_CLIENT_ID: ${FREESOUND_CLIENT_ID}
+        FREESOUND_API_KEY: ${FREESOUND_API_KEY}
+        NEXT_PUBLIC_MARBLE_API_URL: ${NEXT_PUBLIC_MARBLE_API_URL:-https://api.marblecms.com}
+        MARBLE_WORKSPACE_KEY: ${MARBLE_WORKSPACE_KEY:-build-placeholder}
+    container_name: opencut-web
     restart: unless-stopped
     ports:
-      - "3100:3000"
+      - "${WEB_PORT:-3100}:3000"
     environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://opencut:opencut@db:5432/opencut
-      - BETTER_AUTH_SECRET=your-production-secret-key-here
-      - UPSTASH_REDIS_REST_URL=http://serverless-redis-http:80
-      - UPSTASH_REDIS_REST_TOKEN=example_token
-      - NEXT_PUBLIC_SITE_URL=http://localhost:3100
-      - NEXT_PUBLIC_MARBLE_API_URL=https://api.marblecms.com
-      - MARBLE_WORKSPACE_KEY=${MARBLE_WORKSPACE_KEY:-placeholder}
-      - FREESOUND_CLIENT_ID=${FREESOUND_CLIENT_ID}
-      - FREESOUND_API_KEY=${FREESOUND_API_KEY}
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:-postgresql://opencut:opencut@db:5432/opencut}
+      UPSTASH_REDIS_REST_URL: ${UPSTASH_REDIS_REST_URL:-http://serverless-redis-http:80}
+      UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:-upstash_redis_example_token}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-your_long_random_secret_here_at_least_32_characters}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3100}
+      NEXT_PUBLIC_MARBLE_API_URL: ${NEXT_PUBLIC_MARBLE_API_URL:-https://api.marblecms.com}
+      MARBLE_WORKSPACE_KEY: ${MARBLE_WORKSPACE_KEY:-placeholder}
+      FREESOUND_CLIENT_ID: ${FREESOUND_CLIENT_ID}
+      FREESOUND_API_KEY: ${FREESOUND_API_KEY}
+    volumes:
+      - ${MOUNT_0:-./data:/app/data}
+      - ${MOUNT_1:-/tmp:/tmp/opencut-mount-1}
+      - ${MOUNT_2:-/tmp:/tmp/opencut-mount-2}
+      - ${MOUNT_3:-/tmp:/tmp/opencut-mount-3}
+      - ${MOUNT_4:-/tmp:/tmp/opencut-mount-4}
+      - ${MOUNT_5:-/tmp:/tmp/opencut-mount-5}
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       serverless-redis-http:
         condition: service_healthy
@@ -84,7 +98,4 @@ services:
 
 volumes:
   postgres_data:
-
-networks:
-  default:
-    name: opencut-network
+  redis_data:
